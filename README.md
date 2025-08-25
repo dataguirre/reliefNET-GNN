@@ -1,4 +1,4 @@
-# reliefNET-GNN
+# AI for Aid: Using ReliefNET-GNN to Enhance Transportation Resilience in Disaster Response
 > Fully reproducibility of the paper "AI for Aid: Using ReliefNET-GNN to Enhance Transportation Resilience in Disaster Response"
 
 <p align="center">
