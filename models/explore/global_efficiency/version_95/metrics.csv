@@ -1,0 +1,2 @@
+epoch,step,val_loss_RANK,val_map_at_k_metric
+0,24,7165.63525390625,0.631521463394165

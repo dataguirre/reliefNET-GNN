@@ -1,0 +1,12 @@
+dropout: 0.22
+edge_embedding_operator: concat
+embedding_size: 128
+heads: null
+loss_fn: RANK
+loss_phi_fn: sqrt_exp
+lr: 0.0059485216921535515
+msg_passing: GCN
+num_layers_mlp: 2
+num_layers_msg: 2
+num_x_features: 3
+v2: null

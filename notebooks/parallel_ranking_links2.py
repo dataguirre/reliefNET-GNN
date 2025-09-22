@@ -1,0 +1,169 @@
+import concurrent.futures
+import json
+import math
+import os
+import time
+from functools import partial
+from pathlib import Path
+
+import networkx as nx
+import pandas as pd
+from tqdm import tqdm
+
+from vulnerability_networks.algorithms.functionality_based import global_efficiency
+from vulnerability_networks.algorithms.utils import generate_disruption_scenarios
+from vulnerability_networks.config import PATH_DATA
+
+
+def get_total_combinations(edges: list, percentage_links: float):
+    R = int(len(edges) * percentage_links)
+    total = sum(math.comb(len(edges), r) for r in range(1, R + 1))
+    return total
+
+def evaluate_disruption(disruption, G, sources, terminals, accessibility_index, P_0):
+    """Evaluate a single disruption scenario"""
+    G_disrupted = G.copy()
+    for edge in disruption:
+        G_disrupted.remove_edge(*edge)
+    try:
+        P_disruption = accessibility_index(G_disrupted, sources, terminals)
+        delta = P_0 - P_disruption
+        # Return the disruption and its impact
+        del G_disrupted
+        return disruption, delta
+    except Exception as e:
+        # Return None if calculation fails
+        return disruption, None
+
+def parallel_criticality_score(G, disruptions, accessibility_index, max_workers=None):
+    """Parallelized version of rank_links"""
+    # assert all_edges_have_attr(G, "weight")
+    
+    # Identify sources and terminals
+    sources, terminals = [], []
+    for node, profile in nx.get_node_attributes(G, "profile").items():
+        if profile == "source":
+            sources.append(node)
+        elif profile == "terminal":
+            terminals.append(node)
+    if not sources or not terminals:
+        raise Exception("There must be at least 1 source and 1 terminal")
+    
+    # Calculate initial network performance
+    P_0 = accessibility_index(G, sources, terminals)
+    
+    # Initialize result container
+    link_performance = {}
+    
+    # Process disruptions in parallel
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # Create a partial function for parallel execution
+        evaluate_func = partial(evaluate_disruption, G=G, sources=sources, 
+                                terminals=terminals, accessibility_index=accessibility_index, P_0=P_0)
+
+        # size = min(get_total_combinations(list(G.edges), 0.4), 1_000_000)
+        # Use tqdm to show a progress bar (disable for nested parallelism)
+        results = list(executor.map(evaluate_func, disruptions))
+        
+    # Process results
+    for disruption, delta in results:
+        if delta is not None:
+            for edge in disruption:
+                link_performance[edge] = link_performance.get(edge, 0) + delta * (1 / len(disruption))
+    
+    # Sort and return results
+    return list(link_performance.items())
+    # return sorted(link_performance.items(), key=lambda x: x[1], reverse=True)
+
+def all_edges_have_attr(G: nx.Graph, attr: str) -> bool:
+    """Check if all edges in the graph have a specific attribute."""
+    return all(attr in data for _, _, data in G.edges(data=True))
+
+def process_network(path, inner_workers, index_accesibility, percentage_links=0.4, max_disruption_scenarios=1_000_000):
+    """Process a single network - this will be called in parallel"""
+    try:
+        print(f"Processing network: {path}")
+        G = nx.read_gml(path)
+        disruptions = generate_disruption_scenarios(list(G.edges), percentage_links=percentage_links, max_scenarios=max_disruption_scenarios)
+        size = min(get_total_combinations(G.edges, percentage_links), max_disruption_scenarios)
+        print(f"Network has {len(G.nodes)} nodes and {len(G.edges)} edges")
+        print(f"Testing with {size} disruption scenarios")
+
+        # Call the parallel ranking function with inner parallelism
+        critical_links = parallel_criticality_score(G, disruptions, index_accesibility, max_workers=inner_workers)
+
+        # Return results
+        result = {
+            'network_path': str(path),
+            # 'nodes': len(G.nodes),
+            # 'edges': len(G.edges),
+            'critical_links': critical_links
+        }
+        
+        # print(f"Top 5 critical links: {sorted(critical_links, key=lambda x: x[1])[:5]}")
+        # print("-" * 50)
+        
+        return result
+    except Exception as e:
+        print(f"Error processing network {path}: {e}")
+        return None
+
+# Main execution with two-level parallelism
+if __name__ == "__main__":
+    # For timing comparison
+    start_time = time.time()
+
+    # Define paths to your network files
+    path_raw = PATH_DATA/"raw"
+    path_interim = PATH_DATA/"interim"
+
+    with open(path_raw/"network_catalog.json", "r") as f:
+        catalog = json.load(f)
+
+    df = pd.DataFrame(catalog)
+    df["path"] = df["path"].apply(lambda x: path_raw/x/'graph.gml')
+
+    # For demonstration, process only a subset of networks
+    df_example = df.query("size_category!='large'").sample(frac=1)
+    paths = df_example["path"].tolist()
+
+    # Calculate optimal worker distribution
+    total_cores = os.cpu_count()
+    # Use 25% of cores for network-level parallelism, minimum 2
+    outer_workers = max(2, int(total_cores*0.25))# max(2, int(total_cores * 0.25))
+    # Use remaining cores for disruption-level parallelism, minimum 1
+    inner_workers = max(2, int(total_cores*0.75))# max(1, total_cores // outer_workers)
+    
+    print(f"Using {outer_workers} workers for network processing")
+    print(f"Using {inner_workers} workers for disruption evaluation within each network")
+
+
+    # List to store results
+    # results = []
+    accesibility_indexes = {"global_efficiency": global_efficiency}
+    index_accesibility = "global_efficiency"
+    percentage_links = 0.2
+    max_scenarios = 150_000
+    path_to_save = path_interim/index_accesibility
+    path_to_save.mkdir(exist_ok=True, parents=True)
+    
+    # Outer parallelism (across networks)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=outer_workers) as executor:
+        # Create partial function with inner worker allocation
+        process_func = partial(process_network, inner_workers=inner_workers,
+                               index_accesibility=accesibility_indexes[index_accesibility],
+                               percentage_links = percentage_links,
+                               max_disruption_scenarios = max_scenarios)
+        
+        # Submit all networks for processing
+        future_to_path = {executor.submit(process_func, path): path for path in paths}
+        
+        # Process results as they complete with progress bar
+        for future in tqdm(concurrent.futures.as_completed(future_to_path), total=len(paths)):
+            result = future.result()
+            if result:
+                network_id = Path(result["network_path"]).parent.name
+                with open(path_to_save/f"{network_id}.json", 'w') as f:
+                    json.dump(result, f)
+    
+    print(f"Total processing time: {time.time() - start_time:.2f} seconds")

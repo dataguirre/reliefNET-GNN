@@ -1,0 +1,12 @@
+dropout: 0.32
+edge_embedding_operator: mean
+embedding_size: 32
+heads: null
+loss_fn: MSE
+loss_phi_fn: exponential
+lr: 0.002778244006002347
+msg_passing: GCN
+num_layers_mlp: 1
+num_layers_msg: 3
+num_x_features: 3
+v2: null

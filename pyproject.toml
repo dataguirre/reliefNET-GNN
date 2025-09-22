@@ -1,32 +1,149 @@
 [project]
-name = "reliefnet-gnn"
-version = "0.1.0"
-description = "Add your description here"
+name = "vulnerability-networks"
+version = "0.0.1"
+description = "Tesis de maestría de modelos de vulnerabilidad en desastres naturales"
+authors = [{ name = "Daniel Aguirre", email = "danielaguirre722@gmail.com" }]
 readme = "README.md"
-authors = [
-    { name = "Daniel Aguirre", email = "danielaguirre722@gmail.com" }
+keywords = ['python']
+requires-python = ">=3.9,<4.0"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-requires-python = ">=3.12"
 dependencies = [
-    "loguru>=0.7.3",
-    "networkx>=3.5",
-    "numpy>=2.3.2",
+    "joblib>=1.5.0",
+    "lightning>=2.5.1.post0",
+    "marimo>=0.13.6",
+    "matplotlib>=3.9.4",
+    "more-itertools>=10.6.0",
+    "networkx>=3.2.1",
+    "optuna>=4.3.0",
+    "optuna-integration[pytorch-lightning]>=4.3.0",
+    "pandas>=2.2.3",
+    "scienceplots>=2.1.1",
+    "scipy>=1.13.1",
+    "seaborn>=0.13.2",
+    "torch>=2.5.1",
+    "torch-geometric>=2.6.1",
+    "torchvision>=0.20.1",
 ]
 
-[project.scripts]
-reliefnet-gnn = "reliefnet_gnn:main"
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", marker = "platform_system == 'Windows'" },
+  { index = "pytorch-cu124", marker = "platform_system == 'Linux'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", marker = "platform_system == 'Windows'" },
+  { index = "pytorch-cu124", marker = "platform_system == 'Linux'" },
+]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[project.urls]
+Homepage = "https://dataguirre.github.io/vulnerability-networks/"
+Repository = "https://github.com/dataguirre/vulnerability-networks"
+Documentation = "https://dataguirre.github.io/vulnerability-networks/"
 
 [dependency-groups]
 dev = [
-    "commitizen>=4.8.3",
+    "pytest>=7.2.0",
+    "tox-uv>=1.11.3",
+    "mypy>=0.991",
+    "ruff>=0.9.2",
+    "commitizen>=4.2.2",
+    "types-networkx>=3.4.2.20241227",
+    "ipython>=8.18.1",
     "ipdb>=0.13.13",
-    "jedi-language-server>=0.45.1",
-    "ruff>=0.12.10",
+    "jedi-language-server>=0.45.0",
+    "tqdm>=4.67.1",
+    "jupyter>=1.1.1",
+    "tensorboard>=2.19.0",
 ]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.mypy]
+files = [
+    "src"
+]
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    # "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E", "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+preview = true
+
+

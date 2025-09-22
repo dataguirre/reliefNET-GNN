@@ -1,0 +1,12 @@
+dropout: 0.28
+edge_embedding_operator: hadamard
+embedding_size: 128
+heads: null
+loss_fn: MSE
+loss_phi_fn: exponential
+lr: 0.0003583614787285868
+msg_passing: GCN
+num_layers_mlp: 2
+num_layers_msg: 1
+num_x_features: 3
+v2: null

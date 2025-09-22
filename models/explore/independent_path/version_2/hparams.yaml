@@ -1,0 +1,12 @@
+dropout: 0.4
+edge_embedding_operator: concat
+embedding_size: 128
+heads: 4
+loss_fn: MSE
+loss_phi_fn: sqrt_exp
+lr: 3.9459088110999965e-05
+msg_passing: GAT
+num_layers_mlp: 4
+num_layers_msg: 5
+num_x_features: 3
+v2: false
